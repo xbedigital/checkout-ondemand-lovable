@@ -4,18 +4,20 @@ import mercadopago from 'mercadopago';
 mercadopago.configurations.setAccessToken('APP_USR-3067856257757616-032416-34d4191b42d56349c5d19b251a81b001-3289815927');
 
 export default async function handler(req, res) {
-  // === CORS ===
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Permite requisições de qualquer origem
+  // === CORS para o domínio da sua LP ===
+  res.setHeader('Access-Control-Allow-Origin', 'https://xbedigital.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Responder requisições OPTIONS (pré-verificação do navegador)
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  // === Somente POST é permitido ===
   if (req.method === 'POST') {
     try {
-      const { token, email, amount } = req.body; // dados recebidos do frontend
+      const { token, email, amount } = req.body; // Dados recebidos do frontend
 
       // Criar pagamento no Mercado Pago
       const payment_data = {
@@ -23,7 +25,7 @@ export default async function handler(req, res) {
         token: token,
         description: 'Compra na LP',
         installments: 1,
-        payment_method_id: 'visa', // para cartão, pode mudar dinamicamente
+        payment_method_id: 'visa', // padrão para cartão, o frontend pode enviar outro
         payer: {
           email: email
         }
@@ -37,6 +39,7 @@ export default async function handler(req, res) {
       res.status(500).json({ error: error.message });
     }
   } else {
+    // Métodos não permitidos
     res.status(405).json({ error: 'Método não permitido' });
   }
 }
