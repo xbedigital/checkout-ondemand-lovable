@@ -1,59 +1,42 @@
-// checkout.js atualizado com CORS
-const produtos = [
-  { id: 1, nome: "Coleta de Dados + Criação e/ou Configuração de BM, Página Comercial e Conta de Anúncio", valor: 7990 },
-  { id: 2, nome: "Campanha de Gestão de Tráfego Pago - Meta Ads", valor: 37890 },
-  { id: 3, nome: "Campanha Google Ads", valor: 47890 },
-  { id: 4, nome: "Copy para arte", valor: 1990 },
-  { id: 5, nome: "Copy para carrossel", valor: 3990 },
-  { id: 6, nome: "Copy para vídeo", valor: 5990 },
-  { id: 7, nome: "Criativo arte", valor: 3990 },
-  { id: 8, nome: "Criativo carrossel", valor: 9990 },
-  { id: 9, nome: "Edição de vídeo", valor: 11990 },
-  { id: 10, nome: "Relatório de métricas (mensal)", valor: 4490 },
-  { id: 11, nome: "Copy para landing page", valor: 24990 },
-  { id: 12, nome: "Criação de Landing Page", valor: 119900 }
-];
+import mercadopago from 'mercadopago';
+
+// Configuração Mercado Pago
+mercadopago.configurations.setAccessToken('APP_USR-3067856257757616-032416-34d4191b42d56349c5d19b251a81b001-3289815927');
 
 export default async function handler(req, res) {
-  // Cabeçalhos CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // === CORS ===
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Permite requisições de qualquer origem
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Resposta rápida para OPTIONS (pré-flight)
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.method !== "POST") return res.status(405).json({ error: "Método não permitido" });
+  if (req.method === 'POST') {
+    try {
+      const { token, email, amount } = req.body; // dados recebidos do frontend
 
-  const { itens } = req.body;
+      // Criar pagamento no Mercado Pago
+      const payment_data = {
+        transaction_amount: amount / 100, // valor em reais
+        token: token,
+        description: 'Compra na LP',
+        installments: 1,
+        payment_method_id: 'visa', // para cartão, pode mudar dinamicamente
+        payer: {
+          email: email
+        }
+      };
 
-  const produtosSelecionados = itens.map(i => {
-    const produto = produtos.find(p => p.id === i.id);
-    return {
-      title: produto.nome,
-      unit_price: produto.valor,
-      quantity: i.quantidade
-    };
-  });
+      const payment = await mercadopago.payment.save(payment_data);
 
-  const payload = { items: produtosSelecionados };
-
-  try {
-    const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.ACCESS_TOKEN}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-    return res.status(200).json(data);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Erro interno na API" });
+      // Retorno para o frontend
+      res.status(200).json({ success: true, payment });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  } else {
+    res.status(405).json({ error: 'Método não permitido' });
   }
 }
