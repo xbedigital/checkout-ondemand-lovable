@@ -1,7 +1,8 @@
+// checkout.js atualizado com CORS
 const produtos = [
   { id: 1, nome: "Coleta de Dados + Criação e/ou Configuração de BM, Página Comercial e Conta de Anúncio", valor: 7990 },
-  { id: 2, nome: "Campanha de Gestão de Tráfego Pago - Meta Ads", valor: 37890, adicional: 31890 },
-  { id: 3, nome: "Campanha Google Ads", valor: 47890, adicional: 41890 },
+  { id: 2, nome: "Campanha de Gestão de Tráfego Pago - Meta Ads", valor: 37890 },
+  { id: 3, nome: "Campanha Google Ads", valor: 47890 },
   { id: 4, nome: "Copy para arte", valor: 1990 },
   { id: 5, nome: "Copy para carrossel", valor: 3990 },
   { id: 6, nome: "Copy para vídeo", valor: 5990 },
@@ -14,6 +15,16 @@ const produtos = [
 ];
 
 export default async function handler(req, res) {
+  // Cabeçalhos CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Resposta rápida para OPTIONS (pré-flight)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") return res.status(405).json({ error: "Método não permitido" });
 
   const { itens } = req.body;
@@ -27,19 +38,22 @@ export default async function handler(req, res) {
     };
   });
 
-  const payload = {
-    items: produtosSelecionados
-  };
+  const payload = { items: produtosSelecionados };
 
-  const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.ACCESS_TOKEN}`
-    },
-    body: JSON.stringify(payload)
-  });
+  try {
+    const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.ACCESS_TOKEN}`
+      },
+      body: JSON.stringify(payload)
+    });
 
-  const data = await response.json();
-  return res.status(200).json(data);
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro interno na API" });
+  }
 }
