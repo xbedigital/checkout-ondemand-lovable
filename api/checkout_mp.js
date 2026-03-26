@@ -1,11 +1,8 @@
 export default async function handler(req, res) {
   try {
     const data = req.method === 'POST' ? req.body : req.query;
-
     const { nome, email, cpf, telefone, itensSelecionados } = data;
-    // itensSelecionados é um array enviado pelo front-end com { nome, quantidade }
 
-    // Mapeando os valores dos serviços
     const precos = {
       "Coleta de Dados + Criação e/ou Configuração de BM": 79.90,
       "Campanha Meta Ads": 378.90,
@@ -21,7 +18,6 @@ export default async function handler(req, res) {
       "Criação de Landing Page": 1199.00
     };
 
-    // Criando o array de itens para o Mercado Pago
     const items = itensSelecionados.map(i => ({
       title: i.nome,
       quantity: i.quantidade,
@@ -29,20 +25,13 @@ export default async function handler(req, res) {
       currency_id: "BRL"
     }));
 
-    // Montando o body da preferência
     const body = {
       items,
       payer: {
         name: nome,
         email: email,
-        identification: {
-          type: "CPF",
-          number: cpf
-        },
-        phone: {
-          area_code: "11",
-          number: (telefone || '').replace(/\D/g, '')
-        }
+        identification: { type: "CPF", number: cpf },
+        phone: { area_code: "11", number: (telefone || '').replace(/\D/g, '') }
       },
       back_urls: {
         success: "https://xbedigital.com/obrigado",
@@ -50,14 +39,9 @@ export default async function handler(req, res) {
         pending: "https://xbedigital.com/pending"
       },
       auto_return: "approved",
-      payment_methods: {
-        // Não bloqueia PIX nem cartão
-        excluded_payment_types: [],
-        excluded_payment_methods: []
-      }
+      payment_methods: { excluded_payment_types: [], excluded_payment_methods: [] }
     };
 
-    // Criando a preferência via API do Mercado Pago
     const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: {
@@ -69,14 +53,10 @@ export default async function handler(req, res) {
 
     const mp = await response.json();
 
-    if (!mp.init_point) {
-      throw new Error(JSON.stringify(mp));
-    }
+    if (!mp.init_point) throw new Error(JSON.stringify(mp));
 
-    // REDIRECIONAMENTO DIRETO para checkout do Mercado Pago
-    res.writeHead(302, {
-      Location: mp.init_point
-    });
+    // REDIRECIONAMENTO DIRETO
+    res.writeHead(302, { Location: mp.init_point });
     res.end();
 
   } catch (error) {
