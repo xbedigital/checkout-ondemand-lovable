@@ -4,13 +4,14 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Método não permitido");
 
   try {
-    const { nome, email, cpf, telefone, itensSelecionados } = JSON.parse(req.body.payload);
+    const payload = JSON.parse(req.body.payload || "{}");
+    const { nome, email, cpf, telefone } = payload;
+    let itensSelecionados = payload.itensSelecionados || [];
 
-    if (!itensSelecionados || itensSelecionados.length === 0) {
-      return res.status(400).json({ error: "Nenhum item selecionado" });
-    }
+    // Garantir que seja sempre array
+    if (!Array.isArray(itensSelecionados)) itensSelecionados = [];
 
-    // Mapear os valores de cada serviço automaticamente
+    // Mapear os valores de cada serviço
     const getValor = (nome) => {
       switch(nome) {
         case "Coleta de Dados + Criação e/ou Configuração de BM, Página Comercial e Conta de Anúncio": return 79.90;
@@ -29,9 +30,10 @@ export default async function handler(req, res) {
       }
     };
 
+    // Criar itens compatíveis com Mercado Pago
     const itemsMP = itensSelecionados.map(i => ({
       title: i.nome,
-      quantity: i.quantidade,
+      quantity: i.quantidade || 1,
       unit_price: getValor(i.nome),
       currency_id: "BRL"
     }));
@@ -46,7 +48,7 @@ export default async function handler(req, res) {
       items: itemsMP,
       payment_methods: {
         excluded_payment_types: [],
-        installments: 12,
+        installments: 12
       },
       back_urls: {
         success: "https://xbedigital.com/sucesso",
@@ -54,7 +56,7 @@ export default async function handler(req, res) {
         pending: "https://xbedigital.com/pendente",
       },
       auto_return: "approved",
-      notification_url: "https://checkout-ondemand-lovable.vercel.app/api/notificacao",
+      notification_url: "https://checkout-ondemand-lovable.vercel.app/api/notificacao"
     };
 
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
