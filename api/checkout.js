@@ -1,44 +1,62 @@
-import mercadopago from 'mercadopago';
-
-// Configuração Mercado Pago
-mercadopago.configurations.setAccessToken('APP_USR-3067856257757616-032416-34d4191b42d56349c5d19b251a81b001-3289815927');
+import fetch from "node-fetch";
 
 export default async function handler(req, res) {
-  // === CORS para o domínio da sua LP ===
-  res.setHeader('Access-Control-Allow-Origin', 'https://xbedigital.com');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method !== "POST") return res.status(405).send("Método não permitido");
 
-  // Responder requisições OPTIONS (pré-verificação do navegador)
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  try {
+    const { nome, email, cpf, telefone, itensSelecionados } = JSON.parse(req.body.payload);
 
-  // === Somente POST é permitido ===
-  if (req.method === 'POST') {
-    try {
-      const { token, email, amount } = req.body; // Dados recebidos do frontend
+    // Formata itens para o Mercado Pago
+    const itemsMP = itensSelecionados.map(i => ({
+      title: i.nome,
+      quantity: i.quantidade,
+      unit_price: Math.round((i.valor + (i.adicional || 0)) * 100) / 100,
+      currency_id: "BRL",
+    }));
 
-      // Criar pagamento no Mercado Pago
-      const payment_data = {
-        transaction_amount: amount / 100, // valor em reais
-        token: token,
-        description: 'Compra na LP',
-        installments: 1,
-        payment_method_id: 'visa', // padrão para cartão, o frontend pode enviar outro
-        payer: {
-          email: email
-        }
-      };
+    // Cria a preferência de pagamento
+    const preference = {
+      payer: {
+        name: nome,
+        email: email,
+        identification: { type: "CPF", number: cpf },
+        phone: { number: telefone }
+      },
+      items: itemsMP,
+      payment_methods: {
+        excluded_payment_types: [],
+        installments: 12,
+      },
+      back_urls: {
+        success: "https://xbedigital.com/sucesso",
+        failure: "https://xbedigital.com/erro",
+        pending: "https://xbedigital.com/pendente",
+      },
+      auto_return: "approved",
+      notification_url: "https://checkout-ondemand-lovable.vercel.app/api/notificacao",
+    };
 
-      const payment = await mercadopago.payment.save(payment_data);
+    const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer APP_USR-3067856257757616-032416-34d4191b42d56349c5d19b251a81b001-3289815927",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(preference)
+    });
 
-      // Retorno para o frontend
-      res.status(200).json({ success: true, payment });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    const data = await mpResponse.json();
+
+    if (data.init_point) {
+      return res.status(200).json({ init_point: data.init_point });
+    } else {
+      return res.status(500).json({ error: "Erro ao criar preferência no Mercado Pago", details: data });
     }
-  } else {
+
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
     // Métodos não permitidos
     res.status(405).json({ error: 'Método não permitido' });
   }
