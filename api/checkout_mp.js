@@ -3,6 +3,11 @@ export default async function handler(req, res) {
     const data = req.method === 'POST' ? req.body : req.query;
     const { nome, email, cpf, telefone, itensSelecionados } = data;
 
+    // Verificação rápida: itensSelecionados precisa ser array
+    if (!Array.isArray(itensSelecionados)) {
+      throw new Error("itensSelecionados deve ser um array");
+    }
+
     const precos = {
       "Coleta de Dados + Criação e/ou Configuração de BM": 79.90,
       "Campanha Meta Ads": 378.90,
@@ -55,11 +60,12 @@ export default async function handler(req, res) {
 
     if (!mp.init_point) throw new Error(JSON.stringify(mp));
 
-    // REDIRECIONAMENTO DIRETO
+    // REDIRECIONAMENTO DIRETO PARA O CHECKOUT
     res.writeHead(302, { Location: mp.init_point });
     res.end();
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 }
