@@ -6,15 +6,36 @@ export default async function handler(req, res) {
   try {
     const { nome, email, cpf, telefone, itensSelecionados } = JSON.parse(req.body.payload);
 
-    // Formata itens para o Mercado Pago
+    if (!itensSelecionados || itensSelecionados.length === 0) {
+      return res.status(400).json({ error: "Nenhum item selecionado" });
+    }
+
+    // Mapear os valores de cada serviço automaticamente
+    const getValor = (nome) => {
+      switch(nome) {
+        case "Coleta de Dados + Criação e/ou Configuração de BM, Página Comercial e Conta de Anúncio": return 79.90;
+        case "Campanha Meta Ads": return 378.90;
+        case "Campanha Google Ads": return 478.90;
+        case "Copy para arte": return 19.90;
+        case "Copy para carrossel": return 39.90;
+        case "Copy para vídeo": return 59.90;
+        case "Criativo arte": return 39.90;
+        case "Criativo carrossel": return 99.90;
+        case "Edição de vídeo": return 119.90;
+        case "Relatório de métricas (mensal)": return 44.90;
+        case "Copy para landing page": return 249.90;
+        case "Criação de Landing Page": return 1199.00;
+        default: return 0;
+      }
+    };
+
     const itemsMP = itensSelecionados.map(i => ({
       title: i.nome,
       quantity: i.quantidade,
-      unit_price: Math.round((i.valor + (i.adicional || 0)) * 100) / 100,
-      currency_id: "BRL",
+      unit_price: getValor(i.nome),
+      currency_id: "BRL"
     }));
 
-    // Cria a preferência de pagamento
     const preference = {
       payer: {
         name: nome,
@@ -55,9 +76,5 @@ export default async function handler(req, res) {
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
-  }
-}
-    // Métodos não permitidos
-    res.status(405).json({ error: 'Método não permitido' });
   }
 }
